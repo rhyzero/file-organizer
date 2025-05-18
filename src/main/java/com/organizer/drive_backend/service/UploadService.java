@@ -8,6 +8,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.organizer.drive_backend.model.Response;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,9 @@ import java.util.Collections;
 
 @Service
 public class UploadService {
+    @Autowired
+    private ProcessDocumentService documentProcessor;
+
     //JSON factory from Google API to parse and generate JSON
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
@@ -45,9 +49,20 @@ public class UploadService {
     };
 
     //Method to upload files to drive
-    public Response uploadFileToDrive(File file, String contentType) throws GeneralSecurityException, IOException {
+    public Response uploadFileToDrive(File file, String contentType, String originalFilename) throws GeneralSecurityException, IOException {
         //Response object to store result of the upload operation
         Response response = new Response();
+
+        //Text extraction
+        String extractedText = null;
+        try {
+            extractedText = documentProcessor.extractText(file, contentType);
+            System.out.println("Successfully extracted text, length: " + extractedText.length());
+            System.out.println("Extracted text (first 200 characters): " + extractedText.substring(0, Math.min(200, extractedText.length())));
+        } catch (Exception e) {
+            System.err.println("Error extracting text: " + e.getMessage());
+            //Continue with upload even if text extraction fails
+        }
 
         try {
             //Create a Google Drive instance
