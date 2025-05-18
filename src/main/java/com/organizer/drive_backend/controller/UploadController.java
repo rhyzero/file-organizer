@@ -36,14 +36,33 @@ public class UploadController {
             return "Only PDF and Word documents are allowed";
         }
 
+        String originalFilename = file.getOriginalFilename();
+        String extension = "";
+
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        } else {
+            // Fallback extensions based on content type
+            if (contentType.equals("application/pdf")) {
+                extension = ".pdf";
+            } else if (contentType.equals("application/msword")) {
+                extension = ".doc";
+            } else if (contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+                extension = ".docx";
+            }
+        }
+
         //Create a temporary file on the server's filesystem to store uploaded content
-        File tempFile = File.createTempFile("temp", null);
+        File tempFile = File.createTempFile("temp", extension);
+
+        System.out.println("Created temp file: " + tempFile.getAbsolutePath() +
+                " for original file: " + originalFilename);
 
         //Transfer contents of uploaded file to the temp file
         file.transferTo(tempFile);
 
         //Execute the upload service method to upload the file
-        Response response = uploadService.uploadFileToDrive(tempFile, contentType);
+        Response response = uploadService.uploadFileToDrive(tempFile, contentType, originalFilename);
         System.out.println(response);
         return response;
     }
