@@ -57,22 +57,27 @@ public class BatchProcessService {
         return filePath.toString();
     };
 
+    //Method to extract text from all files in a drive folder
     public Map<String, String> batchProcess() throws IOException, GeneralSecurityException {
+        //HashMap to store results {fileName : resultOfExtraction}
         Map<String, String> extractionResults = new HashMap<>();
 
         Drive drive = createDriveService();
 
+        //Get a list of files using the following queries
         FileList result = drive.files().list().setQ("'" + folderId + "' in parents and trashed = false")
                 .setFields("files(id, name, mimeType)")
                 .execute();
 
         System.out.println("Found files in folder: " + result.getFiles().size());
 
+        //Loop through each file in fileList
         for (com.google.api.services.drive.model.File driveFile : result.getFiles()) {
             String fileId = driveFile.getId();
             String fileName = driveFile.getName();
             String mimeType = driveFile.getMimeType();
 
+            //Check if a file was already processed
             DocumentExtraction existingExtraction = documentRepository.findByFileId(fileId);
             if(existingExtraction != null) {
                 extractionResults.put(fileName, "Already processed on: " + existingExtraction.getExtractionTime());
@@ -81,9 +86,12 @@ public class BatchProcessService {
 
             System.out.println("Processing: " + fileName + " (" + mimeType + ")");
 
+            //Download the files to extract
             try {
                 File localFile = downloadFile(drive, fileId, fileName);
                 String extractedText = documentProcessor.extractText(localFile, mimeType);
+
+                //Create an extraction object and sets their attributes to submit to the database
                 DocumentExtraction extraction = new DocumentExtraction();
                 extraction.setFileName(fileName);
                 extraction.setFileId(fileId);
@@ -115,11 +123,14 @@ public class BatchProcessService {
         return extractionResults;
     }
 
+    //Method to download the files
     private File downloadFile(Drive drive, String fileId, String fileName) throws IOException {
         String extension = getExtensionFromFileName(fileName);
 
+        //Create the tempFile on the user's device
         File tempFile = File.createTempFile("gdrive_", extension);
 
+        //Write data from drive files to the tempFile
         try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
             drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
         }
@@ -127,12 +138,14 @@ public class BatchProcessService {
         return tempFile;
     }
 
+    //Returns the extension of the file
     private String getExtensionFromFileName(String fileName) {
         int lastIndexOfDot = fileName.lastIndexOf('.');
         if (lastIndexOfDot > 0) {
             return fileName.substring(lastIndexOfDot);
         }
-        return ".tmp"; // Default if no extension found
+        //Default if no extension found
+        return ".tmp";
     }
 
     private Drive createDriveService() throws GeneralSecurityException, IOException {
