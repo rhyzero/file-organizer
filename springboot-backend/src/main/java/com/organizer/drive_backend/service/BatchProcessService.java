@@ -1,18 +1,5 @@
 package com.organizer.drive_backend.service;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.FileList;
-import com.organizer.drive_backend.model.DocumentExtraction;
-import com.organizer.drive_backend.repository.DocumentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -25,6 +12,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.FileList;
+import com.organizer.drive_backend.model.DocumentExtraction;
+import com.organizer.drive_backend.repository.DocumentRepository;
+
 @Service
 public class BatchProcessService {
 
@@ -33,6 +34,9 @@ public class BatchProcessService {
 
     @Autowired
     private DocumentRepository documentRepository;
+
+    @Autowired
+    private DocumentTaggerService documentTaggerService;
 
     //JSON factory from Google API to parse and generate JSON
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
@@ -91,6 +95,25 @@ public class BatchProcessService {
                 File localFile = downloadFile(drive, fileId, fileName);
                 String extractedText = documentProcessor.extractText(localFile, mimeType);
 
+                //Classify the document using our simplified tag structure
+                Map<String, Object> classificationResult = Map.of(); //Default empty map
+                String tagString = "";
+                String tagJson = "{}";
+
+                if (extractedText != null && !extractedText.isEmpty()) {
+                    classificationResult = documentTaggerService.classifyDocument(extractedText);
+                    //For database storage
+                    tagString = documentTaggerService.getTagString(classificationResult);
+                    //For JSON variant 
+                    tagJson = documentTaggerService.getTagJson(classificationResult);
+
+                    System.out.println("Document classified with tags: " + tagString);
+
+                    //Check if it's an academic document
+                    boolean isAcademic = documentTaggerService.isAcademicDocument(classificationResult);
+                    System.out.println("Document type: " + (isAcademic ? "academic" : "professional"));
+                }
+
                 //Create an extraction object and sets their attributes to submit to the database
                 DocumentExtraction extraction = new DocumentExtraction();
                 extraction.setFileName(fileName);
@@ -99,9 +122,11 @@ public class BatchProcessService {
                 extraction.setExtractedText(extractedText);
                 extraction.setExtractionTime(LocalDateTime.now());
                 extraction.setStatus("Success");
+                extraction.setTags(tagString);
+                extraction.setTagClassification(tagJson);
                 documentRepository.save(extraction);
 
-                extractionResults.put(fileName, "Successfully processed");
+                extractionResults.put(fileName, "Successfully processed and tagged: " + tagString);
 
                 if (!localFile.delete()) {
                     System.out.println("Failed to delete temp file.");
@@ -117,6 +142,8 @@ public class BatchProcessService {
                 extraction.setExtractionTime(LocalDateTime.now());
                 extraction.setStatus("Failed: " + e.getMessage());
                 documentRepository.save(extraction);
+
+                extractionResults.put(fileName, "Processing failed: " + e.getMessage());
             }
         }
 
@@ -159,6 +186,5 @@ public class BatchProcessService {
                 JSON_FACTORY,
                 credential)
                 .build();
-
     }
 }

@@ -1,9 +1,14 @@
 package com.organizer.drive_backend.model;
 
-import jakarta.persistence.*;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 @Data
 @Entity
@@ -25,4 +30,10 @@ public class DocumentExtraction {
     private LocalDateTime extractionTime;
 
     private String status;
+
+    @Column(length = 1000)  //Store comma-separated tags
+    private String tags;
+
+    @Column(columnDefinition = "TEXT")  //Store detailed classification as JSON
+    private String tagClassification;
 }
