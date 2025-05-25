@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import FileDropzone from './FileDropzone';
 import FileList from './FileList';
 import UploadResults from './UploadResult';
 import './DocumentUploader.css';
+import { getIdToken as getFirebaseIdToken } from 'firebase/auth';
 
 const DocumentUploader = () => {
   //State variables
@@ -10,6 +12,7 @@ const DocumentUploader = () => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [results, setResults] = useState(null);
+  const { getIdToken } = useAuth();
 
   //Function to handle file uploads by giving them unique IDs
   //ID is randomly generated for reacts key attribute before being sent to backend
@@ -37,6 +40,25 @@ const DocumentUploader = () => {
     setResults(null);
 
     try {
+      //Debug: Check if user is authenticated
+      console.log(
+        'Current user:',
+        getIdToken ? 'getIdToken available' : 'getIdToken not available'
+      );
+
+      //Get Firebase ID token for authentication
+      const idToken = await getIdToken();
+      console.log(
+        'ID Token received:',
+        idToken ? 'Token obtained' : 'No token'
+      );
+
+      if (!idToken) {
+        throw new Error(
+          'Authentication token not available. Please try logging out and back in.'
+        );
+      }
+
       const uploadResults = [];
 
       //Files are uploaded one by one since backend only handles one file at a time
@@ -48,6 +70,9 @@ const DocumentUploader = () => {
 
         const response = await fetch('http://localhost:5050/upload', {
           method: 'POST',
+          headers: {
+            Authorization: `Bearer ${idToken}`, //Include FirebaseUID token in the request headers
+          },
           body: formData,
         });
 
@@ -56,6 +81,11 @@ const DocumentUploader = () => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error('Server response:', errorText);
+
+          if (response.status === 401) {
+            throw new Error('Authentication failed. Please log in again.');
+          }
+
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -68,6 +98,7 @@ const DocumentUploader = () => {
 
       setResults(uploadResults);
       console.log('All uploads completed:', uploadResults);
+      setFiles([]);
     } catch (error) {
       console.error('Upload failed:', error);
       alert('Upload failed: ' + error.message);
