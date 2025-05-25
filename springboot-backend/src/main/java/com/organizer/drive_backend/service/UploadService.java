@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,6 +137,32 @@ public class UploadService {
 
             //Set url for uploaded file
             response.setUrl(fileUrl);
+            // Add classification results to response
+            response.setFileName(originalFilename);
+
+            // Convert tag string to list for frontend
+            List<String> tagsList = List.of(tagString.split(","));
+            if (tagString.isEmpty()) {
+                tagsList = List.of();
+            }
+            response.setTags(tagsList);
+
+            // Set document type
+            String documentType = classificationResult.containsKey("document_type") ?
+                    (String) classificationResult.get("document_type") : "professional";
+            response.setDocumentType(documentType);
+
+            // Get confidence from primary tag if available
+            if (classificationResult.containsKey("scores") && classificationResult.containsKey("primary_tags")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Double> scores = (Map<String, Double>) classificationResult.get("scores");
+                @SuppressWarnings("unchecked")
+                List<String> primaryTags = (List<String>) classificationResult.get("primary_tags");
+
+                if (!primaryTags.isEmpty() && scores.containsKey(primaryTags.get(0))) {
+                    response.setConfidence(scores.get(primaryTags.get(0)));
+                }
+            }
         } catch (Exception e) {
             System.out.println(e.getMessage());
             response.setStatus(500);
