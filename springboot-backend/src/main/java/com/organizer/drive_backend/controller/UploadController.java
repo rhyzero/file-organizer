@@ -11,6 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import org.springframework.web.bind.annotation.RequestHeader;
+import com.organizer.drive_backend.service.FirebaseAuthService;
 
 @RestController
 public class UploadController {
@@ -18,9 +20,33 @@ public class UploadController {
     @Autowired
     private UploadService uploadService;
 
+    @Autowired
+    private FirebaseAuthService firebaseAuthService;
+
     //POST Endpoint
     @PostMapping("/upload")
-    public Object handleFileUpload(@RequestParam("document")MultipartFile file) throws IOException, GeneralSecurityException {
+    public Object handleFileUpload(@RequestParam("document")MultipartFile file,
+                                   @RequestHeader("Authorization") String authHeader) throws IOException, GeneralSecurityException {
+        //Firebase Authentication
+        String firebaseUID;
+        try {
+            //Check if request comes with correct header and in the correct format
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return "Missing or invalid Authorization header";
+            }
+
+            //Removes the 'bearer' prefix to get only the firebase token
+            String idToken = authHeader.replace("Bearer ", "");
+
+            //Verify token and get Firebase UID
+            firebaseUID = firebaseAuthService.verifyTokenAndGetUID(idToken);
+            System.out.println("Authenticated user UID: " + firebaseUID);
+
+        } catch (Exception e) {
+            System.err.println("Authentication failed: " + e.getMessage());
+            return "Authentication failed: " + e.getMessage();
+        }
+
         //Check if file is empty
         if (file.isEmpty()) {
             return "File is not valid";
@@ -62,8 +88,19 @@ public class UploadController {
         file.transferTo(tempFile);
 
         //Execute the upload service method to upload the file
-        Response response = uploadService.uploadFileToDrive(tempFile, contentType, originalFilename);
-        System.out.println(response);
-        return response;
+        try {
+            //Execute the upload service method to upload the file (now with Firebase UID)
+            Response response = uploadService.uploadFileToDrive(tempFile, contentType, originalFilename, firebaseUID);
+            System.out.println("Upload response: " + response);
+            return response;
+        } catch (Exception e) {
+            System.err.println("Upload failed: " + e.getMessage());
+            return "Upload failed: " + e.getMessage();
+        } finally {
+            // Clean up temporary file
+            if (tempFile.exists() && !tempFile.delete()) {
+                System.err.println("Failed to delete temporary file: " + tempFile.getAbsolutePath());
+            }
+        }
     }
 }

@@ -22,6 +22,7 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.FileList;
 import com.organizer.drive_backend.model.DocumentExtraction;
 import com.organizer.drive_backend.model.Response;
 import com.organizer.drive_backend.repository.DocumentRepository;
@@ -60,8 +61,8 @@ public class UploadService {
         return filePath.toString();
     };
 
-    //Method to upload files to drive
-    public Response uploadFileToDrive(File file, String contentType, String originalFilename) throws GeneralSecurityException, IOException {
+    //Method to upload files to drive and create folder
+    public Response uploadFileToDrive(File file, String contentType, String originalFilename, String firebaseUID) throws GeneralSecurityException, IOException {
         //Response object to store result of the upload operation
         Response response = new Response();
 
@@ -96,6 +97,9 @@ public class UploadService {
             //Create a Google Drive instance
             Drive drive = createDriveService();
 
+            //Create or get the user folder after authentication
+            String userFolderId = createOrGetUserFolder(drive, firebaseUID);
+
             //Create metadata for the file we are uploading
             com.google.api.services.drive.model.File fileMetaData = new com.google.api.services.drive.model.File();
 
@@ -103,7 +107,7 @@ public class UploadService {
             fileMetaData.setName(file.getName());
 
             //Set the parent folder where the file will reside
-            fileMetaData.setParents(Collections.singletonList(folderId));
+            fileMetaData.setParents(Collections.singletonList(userFolderId));
 
             //Create a filecontent object with the document's content type (file type) and the file itself
             FileContent mediaContent = new FileContent(contentType, file);
@@ -137,22 +141,22 @@ public class UploadService {
 
             //Set url for uploaded file
             response.setUrl(fileUrl);
-            // Add classification results to response
+            //Add classification results to response
             response.setFileName(originalFilename);
 
-            // Convert tag string to list for frontend
+            //Convert tag string to list for frontend
             List<String> tagsList = List.of(tagString.split(","));
             if (tagString.isEmpty()) {
                 tagsList = List.of();
             }
             response.setTags(tagsList);
 
-            // Set document type
+            //Set document type
             String documentType = classificationResult.containsKey("document_type") ?
                     (String) classificationResult.get("document_type") : "professional";
             response.setDocumentType(documentType);
 
-            // Get confidence from primary tag if available
+            //Get confidence from primary tag if available
             if (classificationResult.containsKey("scores") && classificationResult.containsKey("primary_tags")) {
                 @SuppressWarnings("unchecked")
                 Map<String, Double> scores = (Map<String, Double>) classificationResult.get("scores");
@@ -182,5 +186,34 @@ public class UploadService {
                 JSON_FACTORY,
                 credential)
                 .build();
+    }
+
+    //Function to create a folder or get an already existing folder
+    private String createOrGetUserFolder(Drive drive, String firebaseUID) throws IOException {
+        String userFolderName = "user_" + firebaseUID;
+
+        //Query to check if user folder already exists in master folder
+        String query = "'" + folderId + "' in parents and name='" + userFolderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+
+        //Use query to search for folders
+        FileList result = drive.files().list().setQ(query).setFields("files(id, name)").execute();
+
+        //If folder exists, return the existing folders id
+        if (!result.getFiles().isEmpty()) {
+            String existingFolderId = result.getFiles().get(0).getId();
+            System.out.println("Using existing user folder: " + existingFolderId);
+            return existingFolderId;
+        }
+
+        //Create a new folder
+        com.google.api.services.drive.model.File folderMetaData = new com.google.api.services.drive.model.File();
+        folderMetaData.setName(userFolderName);
+        folderMetaData.setMimeType("application/vnd.google-apps.folder");
+        folderMetaData.setParents(Collections.singletonList(folderId));
+
+        com.google.api.services.drive.model.File createdFolder = drive.files().create(folderMetaData).setFields("id").execute();
+        System.out.println("Created new user folder: " + createdFolder.getId());
+
+        return createdFolder.getId();
     }
 }
