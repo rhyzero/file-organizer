@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import FileBrowser from './FileBrowser';
 import FileDropzone from './FileDropzone';
 import FileList from './FileList';
 import UploadResults from './UploadResult';
 import './DocumentUploader.css';
-import { getIdToken as getFirebaseIdToken } from 'firebase/auth';
 
 const DocumentUploader = () => {
   //State variables
@@ -12,6 +12,7 @@ const DocumentUploader = () => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [results, setResults] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { getIdToken } = useAuth();
 
   //Function to handle file uploads by giving them unique IDs
@@ -99,6 +100,9 @@ const DocumentUploader = () => {
       setResults(uploadResults);
       console.log('All uploads completed:', uploadResults);
       setFiles([]);
+
+      //Trigger file browser refresh
+      setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       console.error('Upload failed:', error);
       alert('Upload failed: ' + error.message);
@@ -114,27 +118,37 @@ const DocumentUploader = () => {
         <p>Upload your documents to automatically classify and tag them</p>
       </div>
 
-      <div className="upload-section">
-        <FileDropzone onFilesAdded={handleFilesAdded} />
+      <div className="main-content">
+        {/* Left Column - File Browser */}
+        <div className="file-browser-column">
+          <FileBrowser refreshTrigger={refreshTrigger} />
+        </div>
 
-        {files.length > 0 && (
-          <FileList files={files} onFileRemove={handleFileRemove} />
-        )}
+        {/* Right Column - Upload Section */}
+        <div className="upload-column">
+          <div className="upload-section">
+            <FileDropzone onFilesAdded={handleFilesAdded} />
 
-        <button
-          className="upload-btn"
-          onClick={handleUpload}
-          disabled={files.length === 0 || isUploading}
-        >
-          {isUploading
-            ? 'Processing...'
-            : `Upload & Classify ${files.length} File${
-                files.length !== 1 ? 's' : ''
-              }`}
-        </button>
+            {files.length > 0 && (
+              <FileList files={files} onFileRemove={handleFileRemove} />
+            )}
+
+            <button
+              className="upload-btn"
+              onClick={handleUpload}
+              disabled={files.length === 0 || isUploading}
+            >
+              {isUploading
+                ? 'Processing...'
+                : `Upload & Classify ${files.length} File${
+                    files.length !== 1 ? 's' : ''
+                  }`}
+            </button>
+          </div>
+
+          <UploadResults isUploading={isUploading} results={results} />
+        </div>
       </div>
-
-      <UploadResults isUploading={isUploading} results={results} />
     </div>
   );
 };
