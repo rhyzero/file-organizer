@@ -104,7 +104,7 @@ public class UploadService {
             com.google.api.services.drive.model.File fileMetaData = new com.google.api.services.drive.model.File();
 
             //Set filename of the file on Google Drive to match our local filename
-            fileMetaData.setName(file.getName());
+            fileMetaData.setName(originalFilename);
 
             //Set the parent folder where the file will reside
             fileMetaData.setParents(Collections.singletonList(userFolderId));
