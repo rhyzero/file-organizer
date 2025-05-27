@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import FileItem from './FileItem';
 import LoadingSpinner from './LoadingSpinner';
 import { DocumentIcon } from './icons/DocumentIcon';
 import './FileBrowser.css';
@@ -10,6 +9,14 @@ const FileBrowser = ({ refreshTrigger }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    file: null,
+  });
+  const [showProperties, setShowProperties] = useState(null);
+  const [hoveredFile, setHoveredFile] = useState(null);
 
   const { getIdToken } = useAuth();
 
@@ -66,6 +73,25 @@ const FileBrowser = ({ refreshTrigger }) => {
     }
   }, [refreshTrigger]);
 
+  //Handle right-click context menu
+  const handleRightClick = (e, file) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      file: file,
+    });
+  };
+
+  //Close context menu when clicking elsewhere
+  useEffect(() => {
+    const handleClick = () =>
+      setContextMenu({ visible: false, x: 0, y: 0, file: null });
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
   //Filter files based on search term
   const filteredFiles = files.filter((file) => {
     if (!searchTerm) return true;
@@ -87,11 +113,15 @@ const FileBrowser = ({ refreshTrigger }) => {
   };
 
   const formatFileSize = (bytes) => {
-    if (!bytes) return '';
+    if (!bytes) return 'Unknown size';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (mimeType) => {
+    return <DocumentIcon className="file-grid-icon" />;
   };
 
   if (loading) {
@@ -144,55 +174,119 @@ const FileBrowser = ({ refreshTrigger }) => {
         </div>
       )}
 
-      {/* Files List */}
+      {/* Files Grid */}
       {!error && filteredFiles.length > 0 && (
-        <div className="files-list">
+        <div className="files-grid">
           {filteredFiles.map((file, index) => (
-            <div key={file.fileId || index} className="file-browser-item">
-              <div className="file-info">
-                <DocumentIcon className="file-icon" />
-                <div className="file-details">
-                  <h4 className="file-name">{file.fileName}</h4>
-                  <div className="file-meta">
-                    <span className="file-date">
-                      {formatDate(file.uploadDate)}
-                    </span>
-                    {file.size && (
-                      <>
-                        <span className="separator">•</span>
-                        <span className="file-size">
-                          {formatFileSize(file.size)}
-                        </span>
-                      </>
-                    )}
+            <div
+              key={file.fileId || index}
+              className="file-grid-item"
+              onContextMenu={(e) => handleRightClick(e, file)}
+              onMouseEnter={() => setHoveredFile(file)}
+              onMouseLeave={() => setHoveredFile(null)}
+              onDoubleClick={() => window.open(file.driveUrl, '_blank')}
+            >
+              {getFileIcon(file.mimeType)}
+              <span className="file-grid-name">{file.fileName}</span>
+
+              {/* Hover tooltip showing tags */}
+              {hoveredFile === file && file.tags && file.tags.length > 0 && (
+                <div className="file-tooltip">
+                  <div className="tooltip-tags">
+                    {file.tags.map((tag, tagIndex) => (
+                      <span key={tagIndex} className="tooltip-tag">
+                        {tag}
+                      </span>
+                    ))}
                   </div>
-                  {file.tags && file.tags.length > 0 && (
-                    <div className="file-tags">
-                      {file.tags.map((tag, tagIndex) => (
-                        <span key={tagIndex} className="tag">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
-              </div>
-              <div className="file-actions">
-                <a
-                  href={file.driveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="view-btn"
-                >
-                  View
-                </a>
-              </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Filtered Results */}
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 1000,
+          }}
+        >
+          <div
+            className="context-menu-item"
+            onClick={() => {
+              setShowProperties(contextMenu.file);
+              setContextMenu({ visible: false, x: 0, y: 0, file: null });
+            }}
+          >
+            Properties
+          </div>
+          <div
+            className="context-menu-item"
+            onClick={() => {
+              window.open(contextMenu.file.driveUrl, '_blank');
+              setContextMenu({ visible: false, x: 0, y: 0, file: null });
+            }}
+          >
+            View File
+          </div>
+          <div className="context-menu-item rename">Rename</div>
+          <div className="context-menu-item delete">Delete</div>
+        </div>
+      )}
+
+      {/* Properties Modal */}
+      {showProperties && (
+        <div className="modal-overlay" onClick={() => setShowProperties(null)}>
+          <div
+            className="properties-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>File Properties</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowProperties(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="property-row">
+                <strong>Name:</strong> {showProperties.fileName}
+              </div>
+              <div className="property-row">
+                <strong>Size:</strong> {formatFileSize(showProperties.size)}
+              </div>
+              <div className="property-row">
+                <strong>Date:</strong> {formatDate(showProperties.uploadDate)}
+              </div>
+              <div className="property-row">
+                <strong>Type:</strong> {showProperties.mimeType}
+              </div>
+              {showProperties.tags && showProperties.tags.length > 0 && (
+                <div className="property-row tags-row">
+                  <strong>Tags:</strong>
+                  <div className="property-tags">
+                    {showProperties.tags.map((tag, index) => (
+                      <span key={index} className="property-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Results */}
       {!error &&
         searchTerm &&
         filteredFiles.length === 0 &&
