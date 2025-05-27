@@ -1,5 +1,5 @@
 .document-uploader {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
 }
@@ -21,12 +21,30 @@
   opacity: 0.9;
 }
 
+/* Two-column layout */
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.file-browser-column {
+  /* File browser takes left column */
+}
+
+.upload-column {
+  /* Upload section takes right column */
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
 .upload-section {
   background: white;
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
 }
 
 /* Dropzone Styles */
@@ -234,6 +252,11 @@
 
   .header h1 {
     font-size: 2rem;
+  }
+
+  .main-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
   .upload-section {
