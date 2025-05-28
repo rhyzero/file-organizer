@@ -155,4 +155,83 @@ public class UserFileService {
                 credential)
                 .build();
     }
+
+    //Function to delete a file from the user's drive folder
+    public boolean deleteFile(String firebaseUID, String fileId) throws GeneralSecurityException, IOException {
+        try {
+            Drive drive = createDriveService();
+
+            //Verify the file belongs to this user
+            com.google.api.services.drive.model.File driveFile = drive.files().get(fileId)
+                    .setFields("parents")
+                    .execute();
+
+            String userFolderId = getUserFolderId(drive, firebaseUID);
+            if (userFolderId == null || !driveFile.getParents().contains(userFolderId)) {
+                System.err.println("File does not belong to user or user folder not found");
+                return false;
+            }
+
+            //Delete file from Google Drive
+            drive.files().delete(fileId).execute();
+            System.out.println("File deleted from Google Drive: " + fileId);
+
+            //Delete from database
+            DocumentExtraction dbRecord = documentRepository.findByFileId(fileId);
+            if (dbRecord != null) {
+                documentRepository.delete(dbRecord);
+                System.out.println("File deleted from database: " + fileId);
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("Error deleting file: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public Map<String, Object> renameFile(String firebaseUID, String fileId, String newFileName) throws GeneralSecurityException, IOException {
+        try {
+            Drive drive = createDriveService();
+
+            //Verify the file belongs to this user
+            com.google.api.services.drive.model.File driveFile = drive.files().get(fileId)
+                    .setFields("parents")
+                    .execute();
+
+            String userFolderId = getUserFolderId(drive, firebaseUID);
+            if (userFolderId == null || !driveFile.getParents().contains(userFolderId)) {
+                System.err.println("File does not belong to user or user folder not found");
+                return null;
+            }
+
+            //Update file name in Google Drive
+            com.google.api.services.drive.model.File fileMetadata = new com.google.api.services.drive.model.File();
+            fileMetadata.setName(newFileName);
+
+            drive.files().update(fileId, fileMetadata).execute();
+            System.out.println("File renamed in Google Drive: " + fileId + " to " + newFileName);
+
+            //Update database record
+            DocumentExtraction dbRecord = documentRepository.findByFileId(fileId);
+            if (dbRecord != null) {
+                dbRecord.setFileName(newFileName);
+                documentRepository.save(dbRecord);
+                System.out.println("File renamed in database: " + fileId);
+            }
+
+            //Return simple success response
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "File renamed successfully");
+            response.put("fileId", fileId);
+            response.put("newFileName", newFileName);
+            return response;
+
+        } catch (Exception e) {
+            System.err.println("Error renaming file: " + e.getMessage());
+            throw e;
+        }
+    }
 }
