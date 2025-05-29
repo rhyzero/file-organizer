@@ -22,6 +22,8 @@ const FileBrowser = ({ refreshTrigger }) => {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [fileToRename, setFileToRename] = useState(null);
   const [newFileName, setNewFileName] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   const { getIdToken } = useAuth();
 
@@ -246,12 +248,14 @@ const FileBrowser = ({ refreshTrigger }) => {
   };
 
   //Close context menu when clicking elsewhere
-  useEffect(() => {
-    const handleClick = () =>
-      setContextMenu({ visible: false, x: 0, y: 0, file: null });
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, []);
+  const handleClick = () => {
+    setContextMenu({ visible: false, x: 0, y: 0, file: null });
+    //Close sort dropdown
+    const sortMenu = document.getElementById('sort-menu');
+    if (sortMenu) {
+      sortMenu.classList.remove('show');
+    }
+  };
 
   //Filter files based on search term
   const filteredFiles = files.filter((file) => {
@@ -263,6 +267,67 @@ const FileBrowser = ({ refreshTrigger }) => {
 
     return fileName.includes(searchLower) || tags.includes(searchLower);
   });
+
+  //Sort files based on selected criteria
+  const sortedFiles = [...filteredFiles].sort((a, b) => {
+    let aValue, bValue;
+
+    switch (sortBy) {
+      case 'name':
+        aValue = (a.fileName || '').toLowerCase();
+        bValue = (b.fileName || '').toLowerCase();
+        break;
+      case 'size':
+        aValue = a.size || 0;
+        bValue = b.size || 0;
+        break;
+      case 'type':
+        aValue = (a.mimeType || '').toLowerCase();
+        bValue = (b.mimeType || '').toLowerCase();
+        break;
+      case 'date':
+        aValue = new Date(a.uploadDate || 0);
+        bValue = new Date(b.uploadDate || 0);
+        break;
+      case 'tags':
+        aValue = (a.tags || []).join(', ').toLowerCase();
+        bValue = (b.tags || []).join(', ').toLowerCase();
+        break;
+      default:
+        aValue = (a.fileName || '').toLowerCase();
+        bValue = (b.fileName || '').toLowerCase();
+    }
+
+    //Handle different data types
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      const result = aValue.localeCompare(bValue);
+      return sortOrder === 'asc' ? result : -result;
+    } else if (aValue instanceof Date && bValue instanceof Date) {
+      const result = aValue.getTime() - bValue.getTime();
+      return sortOrder === 'asc' ? result : -result;
+    } else {
+      //For numbers
+      const result = aValue - bValue;
+      return sortOrder === 'asc' ? result : -result;
+    }
+  });
+
+  const handleSortChange = (newSortBy) => {
+    if (newSortBy === sortBy) {
+      //Toggle sort order if same field is selected
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      //Set new sort field with ascending order
+      setSortBy(newSortBy);
+      setSortOrder('asc');
+    }
+
+    //Close dropdown after selection
+    const sortMenu = document.getElementById('sort-menu');
+    if (sortMenu) {
+      sortMenu.classList.remove('show');
+    }
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
@@ -305,15 +370,74 @@ const FileBrowser = ({ refreshTrigger }) => {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="search-section">
-        <input
-          type="text"
-          placeholder="Search files by name or tags..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
+      {/* Search and Sort Controls */}
+      <div className="controls-section">
+        <div className="search-controls">
+          <input
+            type="text"
+            placeholder="Search files by name or tags..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
+        <div className="sort-controls">
+          <div className="sort-dropdown">
+            <button
+              className="sort-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                document.getElementById('sort-menu').classList.toggle('show');
+              }}
+            >
+              Sort by: {sortBy === 'name' && 'Name'}
+              {sortBy === 'size' && 'Size'}
+              {sortBy === 'type' && 'File Type'}
+              {sortBy === 'date' && 'Date Added'}
+              {sortBy === 'tags' && 'Tags'}
+              <span className={`sort-arrow ${sortOrder}`}>
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </span>
+            </button>
+            <div id="sort-menu" className="sort-menu">
+              <div
+                className="sort-option"
+                onClick={() => handleSortChange('name')}
+              >
+                Name{' '}
+                {sortBy === 'name' && <span className="current-sort">✓</span>}
+              </div>
+              <div
+                className="sort-option"
+                onClick={() => handleSortChange('size')}
+              >
+                Size{' '}
+                {sortBy === 'size' && <span className="current-sort">✓</span>}
+              </div>
+              <div
+                className="sort-option"
+                onClick={() => handleSortChange('type')}
+              >
+                File Type{' '}
+                {sortBy === 'type' && <span className="current-sort">✓</span>}
+              </div>
+              <div
+                className="sort-option"
+                onClick={() => handleSortChange('date')}
+              >
+                Date Added{' '}
+                {sortBy === 'date' && <span className="current-sort">✓</span>}
+              </div>
+              <div
+                className="sort-option"
+                onClick={() => handleSortChange('tags')}
+              >
+                Tags{' '}
+                {sortBy === 'tags' && <span className="current-sort">✓</span>}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Error State */}
@@ -336,9 +460,9 @@ const FileBrowser = ({ refreshTrigger }) => {
       )}
 
       {/* Files Grid */}
-      {!error && filteredFiles.length > 0 && (
+      {!error && sortedFiles.length > 0 && (
         <div className="files-grid">
-          {filteredFiles.map((file, index) => (
+          {sortedFiles.map((file, index) => (
             <div
               key={file.fileId || index}
               className="file-grid-item"
@@ -515,6 +639,9 @@ const FileBrowser = ({ refreshTrigger }) => {
           <div className="rename-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Rename File</h3>
+              <button className="close-btn" onClick={cancelRename}>
+                ×
+              </button>
             </div>
             <div className="modal-content">
               <div className="rename-icon">
@@ -562,20 +689,17 @@ const FileBrowser = ({ refreshTrigger }) => {
       )}
 
       {/* No Results */}
-      {!error &&
-        searchTerm &&
-        filteredFiles.length === 0 &&
-        files.length > 0 && (
-          <div className="no-results">
-            <p>No files match "{searchTerm}"</p>
-            <button
-              onClick={() => setSearchTerm('')}
-              className="clear-search-btn"
-            >
-              Clear Search
-            </button>
-          </div>
-        )}
+      {!error && searchTerm && sortedFiles.length === 0 && files.length > 0 && (
+        <div className="no-results">
+          <p>No files match "{searchTerm}"</p>
+          <button
+            onClick={() => setSearchTerm('')}
+            className="clear-search-btn"
+          >
+            Clear Search
+          </button>
+        </div>
+      )}
     </div>
   );
 };

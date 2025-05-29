@@ -3,9 +3,9 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  height: fit-content;
-  max-height: 80vh;
+  height: 70vh;
   overflow-y: auto;
+  width: 60vw;
 }
 
 .file-browser-header {
@@ -33,6 +33,11 @@
 /* Search Section */
 .search-section {
   margin-bottom: 1rem;
+}
+
+.search-controls {
+  width: 90%;
+  margin-right: 1rem;
 }
 
 .search-input {
@@ -545,6 +550,129 @@
 .clear-search-btn:hover {
   background: #667eea;
   color: white;
+}
+
+/* Sort Section */
+.controls-section {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+.sort-section {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sort-dropdown {
+  position: relative;
+  height: 100%;
+}
+
+.sort-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.75rem;
+  background: white;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  justify-content: space-between;
+}
+
+.sort-button:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.sort-arrow {
+  font-size: 0.8rem;
+  color: #667eea;
+  font-weight: bold;
+}
+
+.sort-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  margin-top: 4px;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+  visibility: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top;
+}
+
+.sort-menu.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+
+.sort-option {
+  padding: 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+  transition: all 0.15s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sort-option:hover {
+  background: #dddddd;
+}
+
+.sort-option:nth-child(1) {
+  transition-delay: 0.02s;
+}
+.sort-option:nth-child(2) {
+  transition-delay: 0.04s;
+}
+.sort-option:nth-child(3) {
+  transition-delay: 0.06s;
+}
+.sort-option:nth-child(4) {
+  transition-delay: 0.08s;
+}
+.sort-option:nth-child(5) {
+  transition-delay: 0.1s;
+}
+
+.sort-button:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+.sort-option:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.sort-option:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.current-sort {
+  color: #667eea;
+  font-weight: bold;
 }
 
 /* Responsive Design */
