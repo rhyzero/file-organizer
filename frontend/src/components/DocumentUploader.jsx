@@ -146,7 +146,9 @@ const DocumentUploader = () => {
             </button>
           </div>
 
-          <UploadResults isUploading={isUploading} results={results} />
+          {files.length === 0 && (
+            <UploadResults isUploading={isUploading} results={results} />
+          )}
         </div>
       </div>
     </div>

@@ -33,25 +33,27 @@ const UploadResults = ({ isUploading, results }) => {
   return (
     <div className="results-section">
       <h3>Classification Results</h3>
-      {results.map((result, index) => (
-        <div key={index} className="file-item">
-          <div className="file-info">
-            <CheckCircleIcon className="file-icon success" />
-            <div className="file-details">
-              <h4>{result.fileName}</h4>
-              <p>
-                Tags:{' '}
-                {result.tags && result.tags.length > 0
-                  ? result.tags.join(', ')
-                  : 'No tags'}{' '}
-                • Type: {result.documentType || 'Unknown'}
-                {result.confidence &&
-                  ` • Confidence: ${(result.confidence * 100).toFixed(0)}%`}
-              </p>
+      <div className="results-scroll-wrapper">
+        {results.map((result, index) => (
+          <div key={index} className="file-item">
+            <div className="file-info">
+              <CheckCircleIcon className="file-icon success" />
+              <div className="file-details">
+                <h4>{result.fileName}</h4>
+                <p>
+                  Tags:{' '}
+                  {result.tags && result.tags.length > 0
+                    ? result.tags.join(', ')
+                    : 'No tags'}{' '}
+                  • Type: {result.documentType || 'Unknown'}
+                  {result.confidence &&
+                    ` • Confidence: ${(result.confidence * 100).toFixed(0)}%`}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };

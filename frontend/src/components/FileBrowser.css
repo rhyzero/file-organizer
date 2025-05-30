@@ -3,8 +3,7 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  height: 70vh;
-  overflow-y: auto;
+  height: 75vh;
   width: 60vw;
 }
 
@@ -113,6 +112,12 @@
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 1rem;
   padding: 0.5rem 0;
+  min-height: 200px;
+}
+
+.items-per-page-info {
+  opacity: 0.7;
+  font-size: 0.8em;
 }
 
 .file-grid-item {
@@ -125,6 +130,8 @@
   position: relative;
   transition: all 0.2s ease;
   text-align: center;
+  min-height: 120px;
+  justify-content: space-between;
 }
 
 .file-grid-item:hover {
@@ -262,12 +269,14 @@
   align-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid #e9ecef;
+  text-align: center;
 }
 
 .modal-header h3 {
   margin: 0;
   color: #333;
   font-size: 1.1rem;
+  width: 100%;
 }
 
 .close-btn {
@@ -675,6 +684,58 @@
   font-weight: bold;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e1e5e9;
+  background: white;
+  color: #333;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #667eea;
+  background: #f8f9ff;
+  transform: translateY(-1px);
+}
+
+.pagination-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pagination-info {
+  margin-left: 1rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .file-browser {
@@ -685,10 +746,16 @@
   .files-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 0.75rem;
+    min-height: 160px;
   }
 
   .file-grid-item {
     padding: 0.5rem;
+    min-height: 100px;
+  }
+
+  .items-per-page-info {
+    display: none;
   }
 
   .file-grid-icon {
@@ -708,5 +775,24 @@
   .modal-header,
   .modal-content {
     padding: 1rem;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .pagination-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  .pagination-info {
+    margin-left: 0;
+    margin-top: 0.5rem;
+    text-align: center;
+    width: 100%;
+    font-size: 0.8rem;
   }
 }
