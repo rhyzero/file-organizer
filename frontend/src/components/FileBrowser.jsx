@@ -24,6 +24,9 @@ const FileBrowser = ({ refreshTrigger }) => {
   const [newFileName, setNewFileName] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [containerRef, setContainerRef] = useState(null);
 
   const { getIdToken } = useAuth();
 
@@ -248,14 +251,18 @@ const FileBrowser = ({ refreshTrigger }) => {
   };
 
   //Close context menu when clicking elsewhere
-  const handleClick = () => {
-    setContextMenu({ visible: false, x: 0, y: 0, file: null });
-    //Close sort dropdown
-    const sortMenu = document.getElementById('sort-menu');
-    if (sortMenu) {
-      sortMenu.classList.remove('show');
-    }
-  };
+  useEffect(() => {
+    const handleClick = () => {
+      setContextMenu({ visible: false, x: 0, y: 0, file: null });
+      //Close sort dropdown
+      const sortMenu = document.getElementById('sort-menu');
+      if (sortMenu) {
+        sortMenu.classList.remove('show');
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
 
   //Filter files based on search term
   const filteredFiles = files.filter((file) => {
@@ -312,6 +319,107 @@ const FileBrowser = ({ refreshTrigger }) => {
     }
   });
 
+  const totalPages = Math.ceil(sortedFiles.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFiles = sortedFiles.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, sortOrder]);
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5; //Show max 5 page numbers
+
+    if (totalPages <= maxVisible) {
+      //Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      //Show pages around current page
+      const start = Math.max(1, currentPage - 2);
+      const end = Math.min(totalPages, start + maxVisible - 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+
+    return pages;
+  };
+
+  useEffect(() => {
+    const calculateItemsPerPage = () => {
+      if (!containerRef) return;
+
+      const container = containerRef;
+      const containerRect = container.getBoundingClientRect();
+
+      //Grid item dimensions (from CSS)
+      const itemMinWidth = 100; //minmax(100px, 1fr) from CSS
+      const itemHeight = 120; //Approximate height including icon + text
+      const gap = 16; //1rem gap from CSS
+
+      //Calculate available space (subtract padding and other elements)
+      const availableWidth = containerRect.width - 48; //1.5rem padding each side
+      const availableHeight = window.innerHeight * 0.6; //Use 60% of viewport height for grid
+
+      //Calculate how many columns can fit
+      const columnsCount = Math.floor(
+        (availableWidth + gap) / (itemMinWidth + gap)
+      );
+
+      //Calculate how many rows can fit
+      const rowsCount = Math.floor(
+        (availableHeight + gap) / (itemHeight + gap)
+      );
+
+      //Ensure minimum values
+      const minColumns = Math.max(2, columnsCount);
+      const minRows = Math.max(2, rowsCount);
+
+      const newItemsPerPage = Math.max(6, minColumns * minRows);
+
+      setItemsPerPage(newItemsPerPage);
+    };
+
+    //Calculate on mount and window resize
+    const handleResize = () => {
+      setTimeout(calculateItemsPerPage, 100); //Small delay to ensure DOM is updated
+    };
+
+    if (containerRef) {
+      calculateItemsPerPage();
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [containerRef]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, sortOrder, itemsPerPage]);
+
   const handleSortChange = (newSortBy) => {
     if (newSortBy === sortBy) {
       //Toggle sort order if same field is selected
@@ -360,6 +468,24 @@ const FileBrowser = ({ refreshTrigger }) => {
       </div>
     );
   }
+
+  //Convert file type to display name
+  const getFileTypeDisplay = (mimeType) => {
+    if (!mimeType) return 'Unknown';
+
+    const mimeTypeMap = {
+      'application/pdf': 'PDF',
+      'application/msword': 'DOC',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        'DOCX',
+    };
+
+    return (
+      mimeTypeMap[mimeType] ||
+      mimeType.split('/')[1]?.toUpperCase() ||
+      'Unknown'
+    );
+  };
 
   return (
     <div className="file-browser">
@@ -460,35 +586,87 @@ const FileBrowser = ({ refreshTrigger }) => {
       )}
 
       {/* Files Grid */}
-      {!error && sortedFiles.length > 0 && (
-        <div className="files-grid">
-          {sortedFiles.map((file, index) => (
-            <div
-              key={file.fileId || index}
-              className="file-grid-item"
-              onContextMenu={(e) => handleRightClick(e, file)}
-              onMouseEnter={() => setHoveredFile(file)}
-              onMouseLeave={() => setHoveredFile(null)}
-              onDoubleClick={() => window.open(file.driveUrl, '_blank')}
-            >
-              {getFileIcon(file.mimeType)}
-              <span className="file-grid-name">{file.fileName}</span>
+      {!error && paginatedFiles.length > 0 && (
+        <>
+          <div
+            className="files-grid"
+            ref={(ref) => {
+              if (ref && !containerRef) {
+                setContainerRef(ref);
+              }
+            }}
+          >
+            {paginatedFiles.map((file, index) => (
+              <div
+                key={file.fileId || index}
+                className="file-grid-item"
+                onContextMenu={(e) => handleRightClick(e, file)}
+                onMouseEnter={() => setHoveredFile(file)}
+                onMouseLeave={() => setHoveredFile(null)}
+                onDoubleClick={() => window.open(file.driveUrl, '_blank')}
+              >
+                {getFileIcon(file.mimeType)}
+                <span className="file-grid-name">{file.fileName}</span>
 
-              {/* Hover tooltip showing tags */}
-              {hoveredFile === file && file.tags && file.tags.length > 0 && (
-                <div className="file-tooltip">
-                  <div className="tooltip-tags">
-                    {file.tags.map((tag, tagIndex) => (
-                      <span key={tagIndex} className="tooltip-tag">
-                        {tag}
-                      </span>
-                    ))}
+                {hoveredFile === file && file.tags && file.tags.length > 0 && (
+                  <div className="file-tooltip">
+                    <div className="tooltip-tags">
+                      {file.tags.map((tag, tagIndex) => (
+                        <span key={tagIndex} className="tooltip-tag">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="pagination-btn"
+                onClick={prevPage}
+                disabled={currentPage === 1}
+              >
+                ←
+              </button>
+
+              {getPageNumbers().map((pageNum) => (
+                <button
+                  key={pageNum}
+                  className={`pagination-btn ${
+                    currentPage === pageNum ? 'active' : ''
+                  }`}
+                  onClick={() => goToPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              <button
+                className="pagination-btn"
+                onClick={nextPage}
+                disabled={currentPage === totalPages}
+              >
+                →
+              </button>
+
+              <div className="pagination-info">
+                <span>
+                  Page {currentPage} of {totalPages} • Showing {startIndex + 1}-
+                  {Math.min(endIndex, sortedFiles.length)} of{' '}
+                  {sortedFiles.length} files
+                  <span className="items-per-page-info">
+                    {' '}
+                    ({itemsPerPage} per page)
+                  </span>
+                </span>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Context Menu */}
@@ -568,7 +746,8 @@ const FileBrowser = ({ refreshTrigger }) => {
                 <strong>Date:</strong> {formatDate(showProperties.uploadDate)}
               </div>
               <div className="property-row">
-                <strong>Type:</strong> {showProperties.mimeType}
+                <strong>Type:</strong>{' '}
+                {getFileTypeDisplay(showProperties.mimeType)}
               </div>
               {showProperties.tags && showProperties.tags.length > 0 && (
                 <div className="property-row tags-row">
