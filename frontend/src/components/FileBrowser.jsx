@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import { DocumentIcon } from './icons/DocumentIcon';
 import './FileBrowser.css';
+import FileViewer from './FileViewer';
 
 const FileBrowser = ({ refreshTrigger }) => {
   const [files, setFiles] = useState([]);
@@ -27,6 +28,8 @@ const FileBrowser = ({ refreshTrigger }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [containerRef, setContainerRef] = useState(null);
+  const [showFileViewer, setShowFileViewer] = useState(false);
+  const [viewingFile, setViewingFile] = useState(null);
 
   const { getIdToken } = useAuth();
 
@@ -469,6 +472,16 @@ const FileBrowser = ({ refreshTrigger }) => {
     );
   }
 
+  const openFileViewer = (file) => {
+    setViewingFile(file);
+    setShowFileViewer(true);
+  };
+
+  const closeFileViewer = () => {
+    setShowFileViewer(false);
+    setViewingFile(null);
+  };
+
   //Convert file type to display name
   const getFileTypeDisplay = (mimeType) => {
     if (!mimeType) return 'Unknown';
@@ -603,7 +616,11 @@ const FileBrowser = ({ refreshTrigger }) => {
                 onContextMenu={(e) => handleRightClick(e, file)}
                 onMouseEnter={() => setHoveredFile(file)}
                 onMouseLeave={() => setHoveredFile(null)}
-                onDoubleClick={() => window.open(file.driveUrl, '_blank')}
+                onClick={() => openFileViewer(file)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  window.open(file.driveUrl, '_blank');
+                }}
               >
                 {getFileIcon(file.mimeType)}
                 <span className="file-grid-name">{file.fileName}</span>
@@ -692,7 +709,7 @@ const FileBrowser = ({ refreshTrigger }) => {
           <div
             className="context-menu-item"
             onClick={() => {
-              window.open(contextMenu.file.driveUrl, '_blank');
+              openFileViewer(contextMenu.file);
               setContextMenu({ visible: false, x: 0, y: 0, file: null });
             }}
           >
@@ -718,6 +735,12 @@ const FileBrowser = ({ refreshTrigger }) => {
           </div>
         </div>
       )}
+
+      <FileViewer
+        isOpen={showFileViewer}
+        file={viewingFile}
+        onClose={closeFileViewer}
+      />
 
       {/* Properties Modal */}
       {showProperties && (

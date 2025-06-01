@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -231,6 +232,34 @@ public class UserFileService {
 
         } catch (Exception e) {
             System.err.println("Error renaming file: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public byte[] getFileContent(String firebaseUID, String fileId) throws GeneralSecurityException, IOException {
+        try {
+            Drive drive = createDriveService();
+
+            //Verify the file belongs to this user
+            com.google.api.services.drive.model.File driveFile = drive.files().get(fileId)
+                    .setFields("parents")
+                    .execute();
+
+            String userFolderId = getUserFolderId(drive, firebaseUID);
+            if (userFolderId == null || !driveFile.getParents().contains(userFolderId)) {
+                System.err.println("File does not belong to user or user folder not found");
+                return null;
+            }
+
+            //Download file content
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+
+            System.out.println("File content downloaded successfully: " + fileId);
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            System.err.println("Error downloading file content: " + e.getMessage());
             throw e;
         }
     }
