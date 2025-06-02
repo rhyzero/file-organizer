@@ -40,3 +40,5 @@ Thumbs.db
 *.swp
 *.bak
 numpy_diagnostic.py
+classifier.log
+classifier-error.log
